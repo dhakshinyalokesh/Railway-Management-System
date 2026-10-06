@@ -22,7 +22,7 @@ public class SimplePlatformAllocationPolicy
 
         for (Platform platform : platforms) {
 
-            // Check length
+  
 
             if (platform.getPlatformLength()
                     < train.getTrainLength()) {
@@ -30,7 +30,6 @@ public class SimplePlatformAllocationPolicy
                 continue;
             }
 
-            // Do not displace occupying train
 
             if (platform.isOccupied()) {
 

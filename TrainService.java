@@ -21,11 +21,11 @@ public class TrainService {
     private boolean arrivalConfirmed = false;
     private boolean departureConfirmed = false;
 
-    // Composition
+  
     private ArrayList<Reservation> confirmedBookings =
             new ArrayList<>();
 
-    // FIFO waiting list
+   
     private ArrayDeque<Passenger> waitingQueue =
             new ArrayDeque<>();
 
@@ -41,7 +41,7 @@ public class TrainService {
         this.declaredPriority = declaredPriority;
     }
 
-    // Encapsulation
+  
     public Reservation bookSeat(Passenger passenger, int reservationId) {
 
         if (availableSeats > 0) {
@@ -59,7 +59,6 @@ public class TrainService {
         return null;
     }
 
-    // Encapsulation
     public Reservation cancelBooking(int reservationId, int newReservationId) {
 
         for (int i = 0; i < confirmedBookings.size(); i++) {

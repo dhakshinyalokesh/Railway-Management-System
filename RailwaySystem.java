@@ -113,96 +113,58 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // INITIAL DATA
-    // =================================================
 
     static void initializeData() {
 
-        // 6 trains
+    // 6 trains
+    trains.put("T101",
+            new TrainService(
+                    "T101", "Kongu Express",
+                    100, 130, 180, 2));
 
-        trains.put("T101",
-                new TrainService(
-                        "T101", "Kongu Express",
-                        100, 130, 180, 2));
+    trains.put("T102",
+            new TrainService(
+                    "T102", "Salem Express",
+                    140, 170, 220, 3));
 
-        trains.put("T102",
-                new TrainService(
-                        "T102", "Salem Express",
-                        140, 170, 220, 3));
+    trains.put("T103",
+            new TrainService(
+                    "T103", "Erode Passenger",
+                    180, 210, 160, 1));
 
-        trains.put("T103",
-                new TrainService(
-                        "T103", "Erode Passenger",
-                        180, 210, 160, 1));
+    trains.put("T104",
+            new TrainService(
+                    "T104", "Chennai Express",
+                    220, 260, 300, 4));
 
-        trains.put("T104",
-                new TrainService(
-                        "T104", "Chennai Express",
-                        220, 260, 300, 4));
+    trains.put("T105",
+            new TrainService(
+                    "T105", "Coimbatore Special",
+                    280, 310, 200, 2));
 
-        trains.put("T105",
-                new TrainService(
-                        "T105", "Coimbatore Special",
-                        280, 310, 200, 2));
-
-        trains.put("T106",
-                new TrainService(
-                        "T106", "Night Express",
-                        330, 360, 250, 3));
-
-
-        // 3 platforms
-
-        platforms.put(1, new Platform(1, 200));
-        platforms.put(2, new Platform(2, 280));
-        platforms.put(3, new Platform(3, 350));
+    trains.put("T106",
+            new TrainService(
+                    "T106", "Night Express",
+                    330, 360, 250, 3));
 
 
-        // 30 booking requests
-
-        int passengerNumber = 1;
-
-        for (TrainService train : trains.values()) {
-
-            for (int i = 0; i < 5; i++) {
-
-                Passenger passenger =
-                        new Passenger(
-                                "P" + passengerNumber,
-                                "Passenger " + passengerNumber);
-
-                passengers.put(
-                        passenger.getPassengerId(),
-                        passenger);
-
-                Reservation reservation =
-                        train.bookSeat(
-                                passenger,
-                                nextReservationId);
-
-                if (reservation != null) {
-
-                    reservations.put(
-                            nextReservationId,
-                            reservation);
-
-                    nextReservationId++;
-                }
-
-                passengerNumber++;
-            }
-        }
-
-        System.out.println(
-                "System initialized with 6 trains, "
-                        + "3 platforms and 30 bookings.");
-    }
+    // 3 platforms
+    platforms.put(1, new Platform(1, 200));
+    platforms.put(2, new Platform(2, 280));
+    platforms.put(3, new Platform(3, 350));
 
 
-    // =================================================
-    // VIEW TRAINS
-    // =================================================
+    // No default bookings.
+    // All trains start with 10 available seats.
+    // Passengers book tickets through the menu.
+
+    System.out.println(
+            "System initialized with 6 trains, "
+                    + "3 platforms and 10 seats per train.");
+}
+
+
+  
 
     static void viewTrains() {
 
@@ -239,9 +201,6 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // VIEW PLATFORMS
-    // =================================================
 
     static void viewPlatforms() {
 
@@ -258,9 +217,7 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // BOOK TICKET
-    // =================================================
+ 
 
     static void bookTicket() {
 
@@ -313,9 +270,7 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // CANCEL BOOKING
-    // =================================================
+   
 
     static void cancelBooking() {
 
@@ -357,9 +312,6 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // VIEW WAITING LIST
-    // =================================================
 
     static void viewWaitingList() {
 
@@ -394,9 +346,6 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // REQUEST PLATFORM
-    // =================================================
 
     static void requestPlatform() {
 
@@ -454,9 +403,6 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // ALLOCATE PLATFORM
-    // =================================================
 
     static void allocatePlatform() {
 
@@ -562,9 +508,6 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // CONFIRM ARRIVAL
-    // =================================================
 
     static void confirmArrival() {
 
@@ -599,9 +542,7 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // CONFIRM DEPARTURE
-    // =================================================
+   
 
     static void confirmDeparture() {
 
@@ -633,92 +574,106 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // ADD DELAY
-    // =================================================
 
-    static void addDelay() {
+  static void addDelay() {
 
-        System.out.print("Train ID: ");
-        String trainId = sc.next();
+    System.out.print("Train ID: ");
+    String trainId = sc.next();
 
-        System.out.print("Delay minutes: ");
-        int delay = sc.nextInt();
+    System.out.print("Delay minutes: ");
+    int delay = sc.nextInt();
 
-        TrainService train = trains.get(trainId);
+    TrainService train = trains.get(trainId);
 
-        if (train == null) {
+    if (train == null) {
 
-            System.out.println("Train not found.");
-            return;
-        }
+        System.out.println("Train not found.");
+        return;
+    }
 
-        PlatformOccupation occupation =
-                findOccupation(trainId);
+    // Delay must be positive
+    if (delay <= 0) {
 
-        // No allocation yet
+        System.out.println(
+                "Delay must be greater than 0 minutes.");
+        return;
+    }
 
-        if (occupation == null) {
+    PlatformOccupation occupation =
+            findOccupation(trainId);
 
-            train.addDelay(delay);
-
-            System.out.println("Delay updated.");
-            return;
-        }
-
-        int newStart =
-                train.getArrivalTime() + delay;
-
-        int newEnd =
-                train.getDepartureTime()
-                        + delay
-                        + CLEARANCE_BUFFER;
-
-
-        if (hasConflict(
-                occupation.getPlatformId(),
-                trainId,
-                newStart,
-                newEnd)) {
-
-            System.out.println(
-                    "Delay rejected because of platform overlap.");
-
-            return;
-        }
-
-
-        // Update train
+    // Case 1: No platform allocated yet
+    // Delay can be directly applied.
+    if (occupation == null) {
 
         train.addDelay(delay);
 
-        // Update timetable
-
-        occupation.setStartTime(newStart);
-        occupation.setEndTime(newEnd);
-
-        timetable.sort(
-                Comparator.comparingInt(
-                        PlatformOccupation::getStartTime));
-
-
-        // New release record.
-        // Old record is ignored later as stale.
-
-        releaseHeap.add(
-                new ReleaseRecord(
-                        newEnd,
-                        occupation.getPlatformId(),
-                        trainId));
-
         System.out.println(
                 "Delay updated successfully.");
+
+        System.out.println(
+                "New arrival time: "
+                        + train.getArrivalTime());
+
+        System.out.println(
+                "New departure time: "
+                        + train.getDepartureTime());
+
+        return;
     }
 
+    int newStart =
+            train.getArrivalTime() + delay;
 
-    // =================================================
-    // CHANGE PRIORITY
-    // =================================================
+    int newEnd =
+            train.getDepartureTime()
+                    + delay
+                    + CLEARANCE_BUFFER;
+
+    if (hasConflict(
+            occupation.getPlatformId(),
+            trainId,
+            newStart,
+            newEnd)) {
+
+        System.out.println(
+                "Delay rejected because of platform overlap.");
+
+        System.out.println(
+                "The existing platform plan cannot support this delay.");
+
+        return;
+    }
+
+    train.addDelay(delay);
+
+ 
+    occupation.setStartTime(newStart);
+    occupation.setEndTime(newEnd);
+
+    timetable.sort(
+            Comparator.comparingInt(
+                    PlatformOccupation::getStartTime));
+
+    releaseHeap.add(
+            new ReleaseRecord(
+                    newEnd,
+                    occupation.getPlatformId(),
+                    trainId));
+
+    System.out.println(
+            "Delay updated successfully.");
+
+    System.out.println(
+            "New arrival time: "
+                    + train.getArrivalTime());
+
+    System.out.println(
+            "New departure time: "
+                    + train.getDepartureTime());
+}
+
+
 
     static void changePriority() {
 
@@ -740,8 +695,6 @@ public class RailwaySystem {
         train.setDeclaredPriority(priority);
 
 
-        // Remove and reinsert all queued records
-        // because PriorityQueue does not automatically reorder
 
         ArrayList<PlatformRequest> temp =
                 new ArrayList<>();
@@ -761,10 +714,6 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // ADVANCE TIME
-    // =================================================
-
     static void advanceTime() {
 
         System.out.print("Advance minutes: ");
@@ -778,11 +727,6 @@ public class RailwaySystem {
         System.out.println(
                 "Current time: " + currentTime);
     }
-
-
-    // =================================================
-    // RELEASE PLATFORM USING MIN-HEAP
-    // =================================================
 
     static void releasePlatforms() {
 
@@ -798,7 +742,6 @@ public class RailwaySystem {
                             record.getTrainId());
 
 
-            // Ignore stale record after delay
 
             if (occupation == null) {
                 continue;
@@ -829,10 +772,6 @@ public class RailwaySystem {
     }
 
 
-    // =================================================
-    // VIEW TIMETABLE
-    // =================================================
-
     static void viewTimetable() {
 
         System.out.println(
@@ -860,10 +799,6 @@ public class RailwaySystem {
         }
     }
 
-
-    // =================================================
-    // HELPER METHODS
-    // =================================================
 
     static PlatformOccupation findOccupation(
             String trainId) {
