@@ -2,14 +2,14 @@
 
 ## 1. Problem analysis
 
-Payanam Junction is represented as one station with six train services, three platforms, and one end-to-end General seat class of ten seats per train. The program models bookings and platform reservations in memory for one run. It is a teaching simulation, not a live railway system.
+Payanam Junction is represented as one station with six train services, three platforms, and one end-to-end General seat class of ten seats per train. The original console model keeps state in memory for one run; the browser demo persists booking and platform-operation state in SQLite. It is a teaching simulation, not a live railway system.
 
 The program addresses two station tasks:
 
 1. **Reservations:** confirm a booking while seats remain. When full, append the passenger to that train's FIFO waiting list. A cancellation frees a seat and promotes the oldest waiting passenger immediately.
 2. **Platform scheduling:** order requests by emergency, connection, then scheduled type; break category ties by declared train priority and then request arrival order. Assign the first numbered platform that is long enough and has no overlapping reserved interval. An interval runs from arrival through departure plus a ten-minute clearance buffer. An occupying train is not displaced.
 
-Time values are integer minutes on a single simulated day. The sample values are relative minutes, not clock strings. The scope excludes multiple stations, route planning, payment, live feeds, authentication, and persistence from the original console model. The optional web demo separately demonstrates SQLite-backed booking data.
+Time values are integer minutes on a single simulated day. The sample values are relative minutes, not clock strings. The scope excludes multiple stations, route planning, payment, live feeds, and authentication. The web server uses SQLite and reuses the Java platform-allocation classes and policy, while its HTTP handlers persist the station clock, queued requests, platform occupations, and train changes.
 
 ## 2. Data structures and algorithm choices
 
@@ -37,6 +37,12 @@ classDiagram
       +allocatePlatform()
       +addDelay()
       +viewTimetable()
+    }
+    class PlatformWebController {
+      +handlePlatforms(HttpExchange)
+      +handleAllocation(HttpExchange)
+      +handleTime(HttpExchange)
+      +handleTrainOperation(HttpExchange)
     }
     class TrainService {
       -String trainId
@@ -88,6 +94,9 @@ classDiagram
     RailwaySystem --> PlatformOccupation : timetable
     RailwaySystem --> ReleaseRecord : release heap
     RailwaySystem --> PlatformAllocationPolicy : delegates allocation
+    PlatformWebController --> PlatformAllocationPolicy : delegates allocation
+    PlatformWebController --> PlatformRequest : prioritizes requests
+    PlatformWebController --> ReleaseRecord : release events
     TrainService "1" o-- "0..*" Reservation : confirmed bookings
     TrainService "1" o-- "0..*" Passenger : FIFO waiting queue
     Reservation --> Passenger
@@ -124,24 +133,24 @@ Expected final line: `All assignment scenario checks passed.` The helper is an e
 
 ## 5. Demonstration flow
 
-1. Start the console program with `java RailwaySystem` and show six services and three platforms.
-2. Book one passenger and show the confirmed reservation.
-3. In the separate scenario checker, demonstrate ten confirmed seats, a waiting passenger, cancellation, and FIFO promotion.
-4. Run the allocation checks to show an overlapping timetable and an overlong train receive no platform.
-5. Show a successful delay shifting the occupation end; explain the clearance buffer.
-6. If demonstrating the web enhancement, start it with `run-web.bat`, book/cancel in the browser, and show that SQLite stores the web-demo bookings.
+1. Start the web demo with `run-web.bat` and open `http://localhost:8080`.
+2. Book a passenger, then show the reservation in the browser and at `/api/bookings`.
+3. Under Platform operations, choose a train and request type; queue requests of different types to show priority order, then allocate the next suitable train.
+4. Confirm arrival, apply a delay and show that the system rejects it if the new interval overlaps another reservation, then confirm departure.
+5. Advance the station clock past the clearance end and show the occupation released. Explain that the scheduled interval includes the 10-minute buffer.
+6. If needed, run `java RailwaySystem` to show the original console controls alongside the browser interface.
 
 Screenshots to capture for the final report: console startup with six trains/three platforms; booking and waitlist promotion; timetable before/after a delay; rejected overlap/overlong checks; and the web dashboard with saved bookings. Add your own screenshots after running these steps; none are embedded here because they must show your actual run.
 
 ## 6. Limitations and future improvements
 
-- The original console simulation keeps state in memory and resets when it exits.
+- The original console simulation keeps state in memory and resets when it exits; the browser demo persists its station state in a local SQLite file.
 - The console menu does not import the 30-row CSV; requests are entered individually.
-- The web demo persists passenger and reservation data in SQLite, but it does not implement platform allocation, live train operations, or user accounts.
+- The web demo persists passenger/reservation and platform-operation data in SQLite, but it does not provide user accounts or live railway feeds.
 - The model uses one station, synthetic data, one seat class, and a simple first-fit platform policy.
 - A production system would need stronger validation, concurrency control, audit history, security, and integration with trusted railway data.
 
-Possible future work: connect the web interface to the full platform scheduler; add CSV import/export; support multiple seat classes and stations; and store timetable/platform events in the database.
+Possible future work: add a full audit log, CSV import/export, multiple seat classes and stations, and authentication.
 
 ## 7. SDG connection
 

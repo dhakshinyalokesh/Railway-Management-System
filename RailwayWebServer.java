@@ -14,18 +14,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
 
 /** Small HTTP/API layer that lets the browser use the railway data. */
 public class RailwayWebServer {
     private static final int DEFAULT_PORT = 8080;
     private static final String DB_URL = "jdbc:sqlite:.data/railway.db";
-    private static final int CLEARANCE_BUFFER = 10;
-    private static final int[] PLATFORM_LENGTHS = {200, 280, 350};
 
     public static void main(String[] args) throws Exception {
         Files.createDirectories(Path.of(".data"));
@@ -36,7 +32,11 @@ public class RailwayWebServer {
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/api/trains", RailwayWebServer::handleTrains);
         server.createContext("/api/bookings", RailwayWebServer::handleBookings);
-        server.createContext("/api/platforms", RailwayWebServer::handlePlatforms);
+        server.createContext("/api/platforms", PlatformWebController::handlePlatforms);
+        server.createContext("/api/platform-requests", PlatformWebController::handleRequests);
+        server.createContext("/api/platform-allocations", PlatformWebController::handleAllocation);
+        server.createContext("/api/platform-occupations/", PlatformWebController::handleOccupationAction);
+        server.createContext("/api/station/time", PlatformWebController::handleTime);
         server.createContext("/", RailwayWebServer::serveFrontend);
         server.setExecutor(null);
         server.start();
@@ -44,7 +44,7 @@ public class RailwayWebServer {
         System.out.println("Railway dashboard is running on port " + port);
     }
 
-    private static Connection connect() throws SQLException {
+    static Connection connect() throws SQLException {
         Connection connection = DriverManager.getConnection(DB_URL);
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys = ON");
@@ -86,6 +86,7 @@ public class RailwayWebServer {
                     seedTrains(connection);
                 }
             }
+            PlatformWebController.initialize(connection);
         }
     }
 
@@ -114,6 +115,10 @@ public class RailwayWebServer {
     }
 
     private static void handleTrains(HttpExchange exchange) throws IOException {
+        if (!"/api/trains".equals(exchange.getRequestURI().getPath())) {
+            PlatformWebController.handleTrainOperation(exchange);
+            return;
+        }
         if (!"GET".equals(exchange.getRequestMethod())) {
             sendJson(exchange, 405, "{\"error\":\"Method not allowed\"}");
             return;
@@ -144,83 +149,6 @@ public class RailwayWebServer {
             sendError(exchange, exception);
         }
     }
-
-    /** Rebuilds the platform plan from the saved schedule using the project's allocation policy. */
-    private static void handlePlatforms(HttpExchange exchange) throws IOException {
-        if (!"GET".equals(exchange.getRequestMethod())) {
-            sendJson(exchange, 405, "{\"error\":\"Method not allowed\"}");
-            return;
-        }
-
-        ArrayList<Platform> platforms = new ArrayList<>();
-        for (int i = 0; i < PLATFORM_LENGTHS.length; i++) {
-            platforms.add(new Platform(i + 1, PLATFORM_LENGTHS[i]));
-        }
-
-        ArrayList<TrainService> trains = new ArrayList<>();
-        String sql = "SELECT train_id, name, arrival_time, departure_time, train_length, priority "
-                + "FROM trains ORDER BY arrival_time";
-        try (Connection connection = connect(); Statement statement = connection.createStatement();
-             ResultSet rows = statement.executeQuery(sql)) {
-            while (rows.next()) {
-                trains.add(new TrainService(rows.getString("train_id"), rows.getString("name"),
-                        rows.getInt("arrival_time"), rows.getInt("departure_time"),
-                        rows.getInt("train_length"), rows.getInt("priority")));
-            }
-        } catch (SQLException exception) {
-            sendError(exchange, exception);
-            return;
-        }
-
-        PriorityQueue<PlatformRequest> requests = new PriorityQueue<>();
-        long arrivalOrder = 1;
-        for (TrainService train : trains) {
-            requests.add(new ScheduledArrival(train, arrivalOrder++));
-        }
-
-        ArrayList<PlatformOccupation> timetable = new ArrayList<>();
-        ArrayList<PlatformAllocationRow> allocations = new ArrayList<>();
-        PlatformAllocationPolicy policy = new SimplePlatformAllocationPolicy();
-        while (!requests.isEmpty()) {
-            PlatformRequest request = requests.remove();
-            TrainService train = request.getTrain();
-            Platform platform = policy.allocatePlatform(train, platforms, timetable, CLEARANCE_BUFFER);
-            if (platform != null) {
-                timetable.add(new PlatformOccupation(platform.getPlatformId(), train.getTrainId(),
-                        train.getArrivalTime(), train.getDepartureTime() + CLEARANCE_BUFFER));
-            }
-            allocations.add(new PlatformAllocationRow(train, platform));
-        }
-        allocations.sort(Comparator.comparingInt(row -> row.train().getArrivalTime()));
-
-        List<String> platformJson = new ArrayList<>();
-        for (Platform platform : platforms) {
-            long assigned = allocations.stream().filter(row -> row.platform() != null
-                    && row.platform().getPlatformId() == platform.getPlatformId()).count();
-            platformJson.add("{\"id\":\"P" + platform.getPlatformId() + "\",\"length\":"
-                    + platform.getPlatformLength() + ",\"assigned\":" + assigned + "}");
-        }
-
-        List<String> allocationJson = new ArrayList<>();
-        for (PlatformAllocationRow row : allocations) {
-            TrainService train = row.train();
-            Platform platform = row.platform();
-            allocationJson.add("{\"trainId\":" + quote(train.getTrainId())
-                    + ",\"trainName\":" + quote(train.getTrainName())
-                    + ",\"arrival\":" + train.getArrivalTime()
-                    + ",\"departure\":" + train.getDepartureTime()
-                    + ",\"clearanceEnd\":" + (train.getDepartureTime() + CLEARANCE_BUFFER)
-                    + ",\"length\":" + train.getTrainLength()
-                    + ",\"priority\":" + train.getDeclaredPriority()
-                    + ",\"platformId\":" + (platform == null ? "null" : quote("P" + platform.getPlatformId()))
-                    + ",\"status\":" + quote(platform == null ? "NO_COMPATIBLE_PLATFORM" : "ALLOCATED") + "}");
-        }
-        sendJson(exchange, 200, "{\"clearanceBuffer\":" + CLEARANCE_BUFFER
-                + ",\"platforms\":[" + String.join(",", platformJson)
-                + "],\"allocations\":[" + String.join(",", allocationJson) + "]}");
-    }
-
-    private record PlatformAllocationRow(TrainService train, Platform platform) {}
 
     private static void handleBookings(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
@@ -384,7 +312,7 @@ public class RailwayWebServer {
         }
     }
 
-    private static Map<String, String> parseForm(HttpExchange exchange) throws IOException {
+    static Map<String, String> parseForm(HttpExchange exchange) throws IOException {
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         Map<String, String> values = new LinkedHashMap<>();
         for (String item : body.split("&")) {
@@ -397,7 +325,7 @@ public class RailwayWebServer {
         return values;
     }
 
-    private static String quote(String value) {
+    static String quote(String value) {
         StringBuilder json = new StringBuilder("\"");
         for (char ch : value.toCharArray()) {
             switch (ch) {
@@ -412,7 +340,7 @@ public class RailwayWebServer {
         return json.append('"').toString();
     }
 
-    private static void sendJson(HttpExchange exchange, int status, String json) throws IOException {
+    static void sendJson(HttpExchange exchange, int status, String json) throws IOException {
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
@@ -421,7 +349,7 @@ public class RailwayWebServer {
         exchange.close();
     }
 
-    private static void sendError(HttpExchange exchange, SQLException exception) throws IOException {
+    static void sendError(HttpExchange exchange, SQLException exception) throws IOException {
         System.err.println("Database error: " + exception.getMessage());
         sendJson(exchange, 500, "{\"error\":\"Database request failed\"}");
     }

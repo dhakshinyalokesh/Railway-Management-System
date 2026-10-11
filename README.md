@@ -8,7 +8,8 @@ This repository began as a Java console simulation. The web demo adds a browser 
 - Saves passengers and reservations in SQLite, so data remains after the app closes.
 - Adds a passenger to the FIFO waiting list when a train has no confirmed seats left.
 - Cancels reservations and promotes the oldest waiting passenger when a confirmed seat becomes free.
-- Calculates compatible platform assignments from the saved timetable and shows platform lengths, time windows, and clearance buffers in the dashboard.
+- Requests and allocates platforms by emergency/connection/scheduled priority, train priority, and request order.
+- Confirms arrivals and departures, applies conflict-checked delays, changes train priority, and advances station time to release cleared platforms.
 
 ## Run the web demo
 
@@ -26,21 +27,22 @@ Then open `http://localhost:8080` in a browser. Stop the server with Ctrl+C in t
 Browser (HTML, CSS, JavaScript)
           │ HTTP requests / JSON responses
           ▼
-RailwayWebServer.java (Java API and booking rules)
+RailwayWebServer.java + PlatformWebController.java (Java APIs)
           │ JDBC (Java's database connection interface)
           ▼
 SQLite file: .data/railway.db
 ```
 
-The browser asks `GET /api/trains`, `GET /api/bookings`, and `GET /api/platforms` for data. Booking uses `POST /api/bookings`; cancellation uses `DELETE /api/bookings/{id}`. The Java server validates these requests, runs SQL statements, and sends the result back as JSON. The platform endpoint reads the saved train schedule and recalculates assignments using the same `SimplePlatformAllocationPolicy`, `Platform`, `PlatformOccupation`, and `PlatformRequest` classes as the console simulation. It uses three sample platforms (200 m, 280 m, and 350 m) with a 10-minute clearance buffer. The current web board recalculates the schedule on refresh; platform assignments themselves are not stored as database records.
+The browser asks `GET /api/trains`, `GET /api/bookings`, and `GET /api/platforms` for data. Booking uses `POST /api/bookings`; cancellation uses `DELETE /api/bookings/{id}`. Platform operations use `POST /api/platform-requests`, `POST /api/platform-allocations`, `POST /api/platform-occupations/{trainId}/arrival`, `POST /api/platform-occupations/{trainId}/departure`, `POST /api/trains/{trainId}/delay`, `POST /api/trains/{trainId}/priority`, and `POST /api/station/time`. `PlatformWebController.java` connects these actions to the same Java domain classes and policies as the console scheduler. The request queue, platform state, timetable, train time/priority changes, and station clock are stored in SQLite.
 
-The database has three related tables:
+The database stores the train, reservation, and station-operation records in related tables:
 
 - `trains` stores each train and its seat capacity.
 - `passengers` stores each passenger once for each booking.
 - `reservations` links a passenger to a train and tracks `CONFIRMED`, `WAITING`, or `CANCELLED` status.
+- `platforms` stores platform lengths and current physical occupancy; `platform_requests` stores queued request type and arrival order; `platform_occupations` stores reserved intervals and arrival/departure confirmation; `station_state` stores the simulated clock.
 
-The original console entry point is still `RailwaySystem.java`. Start the browser demo with `run-web.bat` instead.
+The original console entry point is still `RailwaySystem.java`. The web demo uses the separate `RailwayWebServer.java` HTTP layer and `PlatformWebController.java` station-operation API, while reusing the project's `TrainService`, `PlatformRequest`, and platform-allocation policy classes.
 
 ## Assignment report and scenario checks
 

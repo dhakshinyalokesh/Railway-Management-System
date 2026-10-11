@@ -163,6 +163,30 @@ tbody tr:last-child td { border-bottom: 0; }
 .legend i { width: 6px; height: 6px; border-radius: 50%; background: #51b989; }
 .platform-panel { margin-top: 14px; }
 .platform-summary { margin: 6px 0 0; color: var(--muted); font-size: 9px; }
+.station-clock { display: grid; gap: 3px; min-width: 90px; padding: 8px 11px; border-left: 2px solid var(--coral); background: #f7f9fb; }
+.station-clock span, .ops-card-title { color: #8290a0; font: 7px var(--mono); letter-spacing: .5px; }
+.station-clock strong { color: var(--navy); font: 600 18px var(--mono); font-variant-numeric: tabular-nums; }
+.station-ops-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 10px; margin-top: 15px; }
+.ops-card { min-width: 0; padding: 13px 14px; border: 1px solid #e1e7ed; border-radius: 8px; background: #fbfcfd; }
+.ops-card-title { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.ops-card-title span:first-child { color: #52677c; }
+.ops-card label { display: block; margin: 7px 0 4px; color: #536276; font-size: 8px; font-weight: 700; }
+.ops-card select, .ops-card input { width: 100%; min-width: 0; height: 32px; padding: 0 9px; border: 1px solid #dce3ea; border-radius: 5px; background: white; color: var(--ink); font: 9px var(--sans); }
+.ops-button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.ops-button-row .primary-button { min-height: 33px; font-size: 8px; }
+.secondary-button { min-height: 32px; padding: 0 10px; border: 1px solid #d8e0e7; border-radius: 5px; background: #fff; color: var(--navy-3); font: 700 8px var(--sans); cursor: pointer; transition: border-color .18s ease, color .18s ease, background .18s ease; }
+.secondary-button:hover { border-color: var(--coral); color: var(--coral-dark); background: #fff9f7; }
+.ops-message { min-height: 14px; margin-top: 7px; color: #32815e; font-size: 8px; }
+.ops-card > p { max-width: 300px; margin: 0 0 10px; color: var(--muted); font-size: 8px; line-height: 1.6; }
+.clock-form { display: flex; align-items: end; gap: 7px; }
+.clock-form label { flex: 1; }
+.clock-form input { max-width: 72px; }
+.clock-form > span { padding-bottom: 8px; color: #7d8997; font-size: 8px; }
+.clock-form .secondary-button { flex: 0 0 auto; }
+.train-controls { margin-top: 10px; }
+.train-control-fields { display: grid; grid-template-columns: minmax(120px, 1.4fr) minmax(80px, .7fr) auto minmax(125px, 1.2fr) auto; align-items: end; gap: 8px; }
+.train-control-fields label { margin: 0; }
+.train-control-fields .secondary-button { margin-bottom: 0; }
 .platform-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0 4px; }
 .platform-card { padding: 13px 14px; border: 1px solid #e1e7ed; border-radius: 8px; background: linear-gradient(145deg, #fff, #f7f9fb); }
 .platform-card-head { display: flex; align-items: center; justify-content: space-between; }
@@ -176,6 +200,19 @@ tbody tr:last-child td { border-bottom: 0; }
 .platform-card-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: #8794a2; font-size: 8px; }
 .platform-card-foot strong { color: #394f65; font-size: 9px; }
 .platform-card-foot span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+.queue-heading { display: flex; align-items: end; justify-content: space-between; gap: 10px; margin: 18px 0 8px; }
+.queue-heading h3 { margin: 3px 0 0; color: var(--navy); font-size: 13px; letter-spacing: -.3px; }
+.platform-queue { display: grid; gap: 6px; }
+.queue-row { display: grid; grid-template-columns: minmax(130px, 1.1fr) auto minmax(80px, .8fr) minmax(90px, .8fr); align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #edf0f3; border-radius: 6px; background: #fff; color: #627286; font-size: 8px; }
+.queue-train { color: #334960; font-size: 9px; font-weight: 700; }
+.queue-train small { display: block; margin-top: 2px; color: #8a97a5; font: 7px var(--mono); }
+.request-pill { width: max-content; padding: 4px 6px; border: 1px solid #e1e7ed; border-radius: 4px; background: #f7f9fb; color: #586c80; font: 7px var(--mono); }
+.request-pill.emergency { border-color: #f2d4cc; background: #fff5f2; color: #bd503b; }
+.request-pill.connection { border-color: #efdfbd; background: #fffbf1; color: #9e7130; }
+.platform-action-button { padding: 5px 7px; border: 1px solid #dce3ea; border-radius: 4px; background: white; color: var(--navy-3); font: 7px var(--sans); font-weight: 700; cursor: pointer; }
+.platform-action-button:disabled { color: #9ba6b1; cursor: default; }
+.platform-action-button:hover:not(:disabled) { border-color: var(--coral); color: var(--coral-dark); }
+.platform-row-actions { display: flex; gap: 4px; margin-top: 5px; }
 .platform-table-wrap { margin-top: 11px; }
 .reservations-panel { margin-top: 14px; }
 .count-badge { padding: 5px 8px; border: 1px solid #dce4eb; border-radius: 5px; background: #f8fafb; color: var(--navy-3); font: 8px var(--mono); }
@@ -252,6 +289,12 @@ tbody tr:last-child td { border-bottom: 0; }
   .platform-grid { grid-template-columns: 1fr; gap: 7px; }
   .platform-card { padding: 10px 12px; }
   .platform-card-foot { font-size: 7px; }
+  .station-ops-grid { grid-template-columns: 1fr; }
+  .train-control-fields { grid-template-columns: 1fr 1fr; }
+  .train-control-fields label:first-child { grid-column: 1 / -1; }
+  .ops-card-title { font-size: 6px; }
+  .queue-row { grid-template-columns: minmax(95px, 1fr) auto auto; gap: 6px; }
+  .queue-row > span:last-of-type { display: none; }
   .reservations-panel { margin-top: 12px; }
   .reservation-row { grid-template-columns: minmax(105px, 1.25fr) minmax(85px, .9fr) 51px; gap: 5px; padding: 6px 0; }
   .reservation-row .reservation-time, .reservation-row .booking-status { display: none; }
