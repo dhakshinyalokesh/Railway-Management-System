@@ -20,6 +20,7 @@
       <a class="active" href="#overview">Overview</a>
       <a href="#services">Train services</a>
       <a href="#trains">Timetable</a>
+      <a href="#platforms">Platforms</a>
       <a href="#bookings">Reservations</a>
     </nav>
     <div class="header-meta"><span class="service-live"><i></i> LIVE SERVICE</span><span class="today-label" id="todayLabel"></span></div>
@@ -72,6 +73,13 @@
       <div class="panel-heading"><div><div class="eyebrow dark-eyebrow">PLATFORM CONTROL</div><h2 id="timetableTitle">Today's timetable</h2></div><div class="heading-actions"><span class="board-live"><i></i> LIVE BOARD</span><button class="text-button" id="refreshButton">Refresh <span>↻</span></button></div></div>
       <div class="table-wrap"><table><thead><tr><th>TRAIN / SERVICE</th><th>ARRIVAL</th><th>DEPARTURE</th><th>SEATS</th><th>STATUS</th><th></th></tr></thead><tbody id="trainRows"><tr><td colspan="6" class="loading">Loading train services…</td></tr></tbody></table></div>
       <div class="panel-foot"><span id="trainFoot">Showing scheduled services</span><span class="legend"><i></i> Connected to station desk</span></div>
+    </section>
+
+    <section class="panel platform-panel" id="platforms" aria-labelledby="platformTitle">
+      <div class="panel-heading"><div><div class="eyebrow dark-eyebrow">LENGTH · PRIORITY · CLEARANCE</div><h2 id="platformTitle">Platform allocation</h2><p class="platform-summary">Each train needs a long enough platform and a clear arrival-to-departure window.</p></div><button class="text-button" id="refreshPlatformsButton">Recalculate <span>↻</span></button></div>
+      <div class="platform-grid" id="platformCards"><div class="empty-state">Loading platform plan…</div></div>
+      <div class="table-wrap platform-table-wrap"><table><thead><tr><th>TRAIN / LENGTH</th><th>ARRIVAL</th><th>DEPARTURE</th><th>PLATFORM</th><th>BUFFER ENDS</th><th>RESULT</th></tr></thead><tbody id="platformRows"><tr><td colspan="6" class="loading">Calculating platform assignments…</td></tr></tbody></table></div>
+      <div class="panel-foot"><span id="platformFoot">Three platforms · 10 minute clearance buffer</span><span class="legend"><i></i> Schedule-based allocation</span></div>
     </section>
 
     <section class="panel reservations-panel" id="bookings" aria-labelledby="reservationsTitle">
