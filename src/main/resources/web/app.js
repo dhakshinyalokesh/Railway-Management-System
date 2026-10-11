@@ -22,15 +22,17 @@ function formatTime(minutes) {
 
 async function loadDashboard() {
   try {
-    const [trainResponse, bookingResponse] = await Promise.all([
-      fetch('/api/trains'), fetch('/api/bookings')
+    const [trainResponse, bookingResponse, platformResponse] = await Promise.all([
+      fetch('/api/trains'), fetch('/api/bookings'), fetch('/api/platforms')
     ]);
-    if (!trainResponse.ok || !bookingResponse.ok) throw new Error('Could not load station data');
+    if (!trainResponse.ok || !bookingResponse.ok || !platformResponse.ok) throw new Error('Could not load station data');
     trains = await trainResponse.json();
     const bookings = await bookingResponse.json();
+    const platformPlan = await platformResponse.json();
     renderTrains();
     renderServices();
     renderBookings(bookings);
+    renderPlatforms(platformPlan);
     const booked = trains.reduce((sum, train) => sum + train.booked, 0);
     const capacity = trains.reduce((sum, train) => sum + train.totalSeats, 0);
     document.querySelector('#trainCount').textContent = trains.length;
@@ -43,7 +45,31 @@ async function loadDashboard() {
     trainRows.innerHTML = `<tr><td colspan="6" class="loading">${escapeHtml(error.message)}. Is the Java server running?</td></tr>`;
     document.querySelector('#popularRoutes').innerHTML = '<article class="service-placeholder">Connect to the station desk to load services.</article>';
     bookingRows.innerHTML = '<div class="empty-state">Connect to the server to view reservations.</div>';
+    document.querySelector('#platformCards').innerHTML = '<div class="empty-state">Connect to the station desk to calculate platform assignments.</div>';
+    document.querySelector('#platformRows').innerHTML = '<tr><td colspan="6" class="loading">Platform schedule is unavailable.</td></tr>';
   }
+}
+
+function renderPlatforms(plan) {
+  const cards = document.querySelector('#platformCards');
+  cards.innerHTML = plan.platforms.map(platform => {
+    const assigned = plan.allocations.filter(item => item.platformId === platform.id);
+    return `<article class="platform-card">
+      <div class="platform-card-head"><span class="platform-label">${escapeHtml(platform.id)}</span><span class="platform-length">${platform.length} m</span></div>
+      <div class="platform-track"><i></i></div>
+      <div class="platform-card-foot"><strong>${assigned.length} assigned</strong><span>${assigned.length ? assigned.map(item => escapeHtml(item.trainId)).join(' · ') : 'No services assigned'}</span></div>
+    </article>`;
+  }).join('');
+
+  const allocatedCount = plan.allocations.filter(item => item.status === 'ALLOCATED').length;
+  document.querySelector('#platformRows').innerHTML = plan.allocations.map(item => `
+    <tr>
+      <td><div class="train-cell"><span class="train-glyph">↗</span><span>${escapeHtml(item.trainName)}<small class="train-sub">${escapeHtml(item.trainId)} · ${item.length} m · priority ${item.priority}</small></span></div></td>
+      <td>${formatTime(item.arrival)}</td><td>${formatTime(item.departure)}</td>
+      <td>${item.platformId ? escapeHtml(item.platformId) : '—'}</td><td>${formatTime(item.clearanceEnd)}</td>
+      <td><span class="table-status ${item.status === 'ALLOCATED' ? '' : 'limited'}">${item.status === 'ALLOCATED' ? 'Allocated' : 'No compatible platform'}</span></td>
+    </tr>`).join('');
+  document.querySelector('#platformFoot').textContent = `${allocatedCount} of ${plan.allocations.length} trains allocated · ${plan.clearanceBuffer} minute clearance buffer`;
 }
 
 function renderTrains() {
@@ -167,6 +193,7 @@ function showToast(message) {
 
 trainSelect.addEventListener('change', updateSelectedTrain);
 document.querySelector('#refreshButton').addEventListener('click', loadDashboard);
+document.querySelector('#refreshPlatformsButton').addEventListener('click', loadDashboard);
 document.querySelector('#newBookingButton').addEventListener('click', () => {
   document.querySelector('#bookingPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
   document.querySelector('#passengerName').focus({ preventScroll: true });

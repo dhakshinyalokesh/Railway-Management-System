@@ -8,6 +8,7 @@ This repository began as a Java console simulation. The web demo adds a browser 
 - Saves passengers and reservations in SQLite, so data remains after the app closes.
 - Adds a passenger to the FIFO waiting list when a train has no confirmed seats left.
 - Cancels reservations and promotes the oldest waiting passenger when a confirmed seat becomes free.
+- Calculates compatible platform assignments from the saved timetable and shows platform lengths, time windows, and clearance buffers in the dashboard.
 
 ## Run the web demo
 
@@ -31,7 +32,7 @@ RailwayWebServer.java (Java API and booking rules)
 SQLite file: .data/railway.db
 ```
 
-The browser asks `GET /api/trains` and `GET /api/bookings` for data. Booking uses `POST /api/bookings`; cancellation uses `DELETE /api/bookings/{id}`. The Java server validates these requests, runs SQL statements, and sends the result back as JSON.
+The browser asks `GET /api/trains`, `GET /api/bookings`, and `GET /api/platforms` for data. Booking uses `POST /api/bookings`; cancellation uses `DELETE /api/bookings/{id}`. The Java server validates these requests, runs SQL statements, and sends the result back as JSON. The platform endpoint reads the saved train schedule and recalculates assignments using the same `SimplePlatformAllocationPolicy`, `Platform`, `PlatformOccupation`, and `PlatformRequest` classes as the console simulation. It uses three sample platforms (200 m, 280 m, and 350 m) with a 10-minute clearance buffer. The current web board recalculates the schedule on refresh; platform assignments themselves are not stored as database records.
 
 The database has three related tables:
 
