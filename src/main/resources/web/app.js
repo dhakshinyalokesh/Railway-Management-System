@@ -2,6 +2,7 @@ const trainRows = document.querySelector('#trainRows');
 const bookingRows = document.querySelector('#bookingRows');
 const trainSelect = document.querySelector('#trainSelect');
 const bookingForm = document.querySelector('#bookingForm');
+const platformRequestForm = document.querySelector('#platformRequestForm');
 let trains = [];
 
 document.querySelector('#todayLabel').textContent = new Intl.DateTimeFormat(undefined, {
@@ -45,31 +46,55 @@ async function loadDashboard() {
     trainRows.innerHTML = `<tr><td colspan="6" class="loading">${escapeHtml(error.message)}. Is the Java server running?</td></tr>`;
     document.querySelector('#popularRoutes').innerHTML = '<article class="service-placeholder">Connect to the station desk to load services.</article>';
     bookingRows.innerHTML = '<div class="empty-state">Connect to the server to view reservations.</div>';
-    document.querySelector('#platformCards').innerHTML = '<div class="empty-state">Connect to the station desk to calculate platform assignments.</div>';
+    document.querySelector('#platformCards').innerHTML = '<div class="empty-state">Connect to the station desk to load platform operations.</div>';
+    document.querySelector('#platformQueue').innerHTML = '<div class="empty-state">Platform requests are unavailable.</div>';
     document.querySelector('#platformRows').innerHTML = '<tr><td colspan="6" class="loading">Platform schedule is unavailable.</td></tr>';
   }
 }
 
-function renderPlatforms(plan) {
+function renderPlatforms(state) {
+  document.querySelector('#stationTime').textContent = formatTime(state.currentTime);
   const cards = document.querySelector('#platformCards');
-  cards.innerHTML = plan.platforms.map(platform => {
-    const assigned = plan.allocations.filter(item => item.platformId === platform.id);
+  cards.innerHTML = state.platforms.map(platform => {
+    const assigned = state.timetable.filter(item => item.platformId === platform.id);
+    const occupying = platform.occupied ? `Occupied by ${escapeHtml(platform.currentTrainId)}` : 'Physically clear';
     return `<article class="platform-card">
-      <div class="platform-card-head"><span class="platform-label">${escapeHtml(platform.id)}</span><span class="platform-length">${platform.length} m</span></div>
+      <div class="platform-card-head"><span class="platform-label">${escapeHtml(platform.id)}</span><span class="platform-length">${platform.length} m · ${occupying}</span></div>
       <div class="platform-track"><i></i></div>
-      <div class="platform-card-foot"><strong>${assigned.length} assigned</strong><span>${assigned.length ? assigned.map(item => escapeHtml(item.trainId)).join(' · ') : 'No services assigned'}</span></div>
+      <div class="platform-card-foot"><strong>${assigned.length} reserved</strong><span>${assigned.length ? assigned.map(item => `${escapeHtml(item.trainId)} ${formatTime(item.start)}–${formatTime(item.end)}`).join(' · ') : 'No timetable reservations'}</span></div>
     </article>`;
   }).join('');
 
-  const allocatedCount = plan.allocations.filter(item => item.status === 'ALLOCATED').length;
-  document.querySelector('#platformRows').innerHTML = plan.allocations.map(item => `
+  document.querySelector('#platformQueueBadge').textContent = `${state.queue.length} queued`;
+  document.querySelector('#platformQueue').innerHTML = state.queue.length ? state.queue.map(item => `
+    <div class="queue-row"><span class="queue-train">${escapeHtml(item.trainName)}<small>${escapeHtml(item.trainId)} · request #${item.requestId}</small></span>
+    <span class="request-pill ${item.requestType.toLowerCase()}">${escapeHtml(item.requestType)}</span>
+    <span>Train priority ${item.priority}</span><span>Arrival ${formatTime(item.arrival)} · order ${item.arrivalOrder}</span></div>`).join('')
+    : '<div class="empty-state">No pending platform requests. Add a train above to start the allocator.</div>';
+
+  const occupiedPlatform = new Map(state.platforms.map(platform => [platform.id, platform]));
+  document.querySelector('#platformRows').innerHTML = state.timetable.length ? state.timetable.map(item => {
+    const platform = occupiedPlatform.get(item.platformId);
+    const statusText = item.status === 'DEPARTED_CLEARANCE' ? 'Clearance in progress'
+      : item.status === 'ARRIVED' ? 'Train arrived' : 'Reserved';
+    const arrivalDisabled = item.arrivalConfirmed || (platform?.occupied && platform.currentTrainId !== item.trainId);
+    const departureDisabled = !item.arrivalConfirmed || item.departureConfirmed;
+    return `
     <tr>
-      <td><div class="train-cell"><span class="train-glyph">↗</span><span>${escapeHtml(item.trainName)}<small class="train-sub">${escapeHtml(item.trainId)} · ${item.length} m · priority ${item.priority}</small></span></div></td>
-      <td>${formatTime(item.arrival)}</td><td>${formatTime(item.departure)}</td>
-      <td>${item.platformId ? escapeHtml(item.platformId) : '—'}</td><td>${formatTime(item.clearanceEnd)}</td>
-      <td><span class="table-status ${item.status === 'ALLOCATED' ? '' : 'limited'}">${item.status === 'ALLOCATED' ? 'Allocated' : 'No compatible platform'}</span></td>
-    </tr>`).join('');
-  document.querySelector('#platformFoot').textContent = `${allocatedCount} of ${plan.allocations.length} trains allocated · ${plan.clearanceBuffer} minute clearance buffer`;
+      <td><div class="train-cell"><span class="train-glyph">↗</span><span>${escapeHtml(item.trainName)}<small class="train-sub">${escapeHtml(item.trainId)} · ${item.trainLength} m · priority ${item.priority}</small></span></div></td>
+      <td>${formatTime(item.start)}</td><td>${formatTime(item.end - state.clearanceBuffer)}</td>
+      <td>${escapeHtml(item.platformId)}</td><td>${formatTime(item.end)}</td>
+      <td><span class="table-status ${item.status === 'RESERVED' ? '' : 'limited'}">${statusText}</span>
+        <div class="platform-row-actions"><button class="platform-action-button" data-arrive="${escapeHtml(item.trainId)}" ${arrivalDisabled ? 'disabled' : ''}>Arrived</button>
+        <button class="platform-action-button" data-depart="${escapeHtml(item.trainId)}" ${departureDisabled ? 'disabled' : ''}>Departed</button></div></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="6" class="empty-state">No platform reservations yet. Queue requests and allocate a platform.</td></tr>';
+
+  document.querySelector('#platformFoot').textContent = `${state.timetable.length} reservations · ${state.clearanceBuffer} minute clearance buffer · ${formatTime(state.currentTime)} station time`;
+  document.querySelector('#platformRows').querySelectorAll('[data-arrive]').forEach(button => button.addEventListener('click', () =>
+    platformAction(`/api/platform-occupations/${encodeURIComponent(button.dataset.arrive)}/arrival`, 'Arrival confirmed.')));
+  document.querySelector('#platformRows').querySelectorAll('[data-depart]').forEach(button => button.addEventListener('click', () =>
+    platformAction(`/api/platform-occupations/${encodeURIComponent(button.dataset.depart)}/departure`, 'Departure confirmed. Platform remains reserved until clearance.')));
 }
 
 function renderTrains() {
@@ -139,6 +164,14 @@ function updateTrainSelect() {
     `<option value="${escapeHtml(train.id)}">${escapeHtml(train.id)} · ${escapeHtml(train.name)}</option>`
   ).join('');
   if (trains.some(train => train.id === previous)) trainSelect.value = previous;
+  for (const id of ['platformTrainSelect', 'controlTrainSelect']) {
+    const select = document.querySelector(`#${id}`);
+    const selected = select.value;
+    select.innerHTML = '<option value="">Choose a train</option>' + trains.map(train =>
+      `<option value="${escapeHtml(train.id)}">${escapeHtml(train.id)} · ${escapeHtml(train.name)}</option>`
+    ).join('');
+    if (trains.some(train => train.id === selected)) select.value = selected;
+  }
   updateSelectedTrain();
 }
 
@@ -149,6 +182,73 @@ function updateSelectedTrain() {
     ? `<span class="selected-icon">↗</span><span><strong>${escapeHtml(train.name)}</strong><small>${formatTime(train.arrival)} arrival · ${Math.max(0, train.totalSeats - train.booked)} seats available</small></span>`
     : '<span class="selected-icon">↗</span><span><strong>Select a train</strong><small>Schedule details will appear here</small></span>';
 }
+
+async function postStationForm(url, values) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: new URLSearchParams(values)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || result.error || 'Station operation failed');
+  showToast(result.message || 'Station updated');
+  await loadDashboard();
+}
+
+async function platformAction(url) {
+  try {
+    await postStationForm(url, {});
+  } catch (error) {
+    showToast(error.message);
+  }
+}
+
+platformRequestForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  try {
+    await postStationForm('/api/platform-requests', new FormData(platformRequestForm));
+    platformRequestForm.reset();
+    document.querySelector('#platformMessage').textContent = 'Request added. Emergency and connection requests are ordered ahead of scheduled arrivals.';
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+document.querySelector('#allocatePlatformButton').addEventListener('click', () =>
+  platformAction('/api/platform-allocations'));
+
+document.querySelector('#stationTimeForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  try {
+    await postStationForm('/api/station/time', new FormData(event.currentTarget));
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+document.querySelector('#applyDelayButton').addEventListener('click', async () => {
+  const trainId = document.querySelector('#controlTrainSelect').value;
+  if (!trainId) return showToast('Choose a train first');
+  try {
+    await postStationForm(`/api/trains/${encodeURIComponent(trainId)}/delay`, {
+      minutes: document.querySelector('#delayMinutes').value
+    });
+  } catch (error) {
+    showToast(error.message);
+  }
+});
+
+document.querySelector('#applyPriorityButton').addEventListener('click', async () => {
+  const trainId = document.querySelector('#controlTrainSelect').value;
+  if (!trainId) return showToast('Choose a train first');
+  try {
+    await postStationForm(`/api/trains/${encodeURIComponent(trainId)}/priority`, {
+      priority: document.querySelector('#prioritySelect').value
+    });
+  } catch (error) {
+    showToast(error.message);
+  }
+});
 
 async function cancelBooking(id) {
   if (!window.confirm(`Cancel reservation #${id}?`)) return;
@@ -193,7 +293,6 @@ function showToast(message) {
 
 trainSelect.addEventListener('change', updateSelectedTrain);
 document.querySelector('#refreshButton').addEventListener('click', loadDashboard);
-document.querySelector('#refreshPlatformsButton').addEventListener('click', loadDashboard);
 document.querySelector('#newBookingButton').addEventListener('click', () => {
   document.querySelector('#bookingPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
   document.querySelector('#passengerName').focus({ preventScroll: true });

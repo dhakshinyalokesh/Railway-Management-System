@@ -76,10 +76,38 @@
     </section>
 
     <section class="panel platform-panel" id="platforms" aria-labelledby="platformTitle">
-      <div class="panel-heading"><div><div class="eyebrow dark-eyebrow">LENGTH · PRIORITY · CLEARANCE</div><h2 id="platformTitle">Platform allocation</h2><p class="platform-summary">Each train needs a long enough platform and a clear arrival-to-departure window.</p></div><button class="text-button" id="refreshPlatformsButton">Recalculate <span>↻</span></button></div>
+      <div class="panel-heading"><div><div class="eyebrow dark-eyebrow">LENGTH · PRIORITY · CLEARANCE</div><h2 id="platformTitle">Platform operations</h2><p class="platform-summary">Queue arrivals, allocate compatible platforms, manage delays, and advance station time.</p></div><div class="station-clock"><span>STATION TIME</span><strong id="stationTime">00:00</strong></div></div>
+      <div class="station-ops-grid">
+        <form class="ops-card" id="platformRequestForm">
+          <div class="ops-card-title"><span>01 / REQUEST A PLATFORM</span><span>FIFO / PRIORITY QUEUE</span></div>
+          <label for="platformTrainSelect">Train service</label>
+          <select id="platformTrainSelect" name="trainId" required><option value="">Choose a train</option></select>
+          <label for="requestTypeSelect">Request type</label>
+          <select id="requestTypeSelect" name="requestType"><option value="SCHEDULED">Scheduled arrival</option><option value="CONNECTION">Connecting train</option><option value="EMERGENCY">Emergency arrival</option></select>
+          <div class="ops-button-row"><button class="primary-button" type="submit">Add to queue <span>→</span></button><button class="secondary-button" id="allocatePlatformButton" type="button">Allocate next</button></div>
+          <div class="ops-message" id="platformMessage" role="status"></div>
+        </form>
+        <div class="ops-card">
+          <div class="ops-card-title"><span>02 / STATION CLOCK</span><span>RELEASE MIN-HEAP</span></div>
+          <p>Advance time to release platform reservations after the clearance buffer.</p>
+          <form class="clock-form" id="stationTimeForm"><label for="advanceMinutes">Advance by</label><input id="advanceMinutes" name="minutes" type="number" min="1" value="10" required><span>minutes</span><button class="secondary-button" type="submit">Advance time</button></form>
+        </div>
+      </div>
+      <form class="ops-card train-controls" id="trainControlForm">
+        <div class="ops-card-title"><span>03 / TRAIN CONTROLS</span><span>DELAY CHECK · PRIORITY UPDATE</span></div>
+        <div class="train-control-fields">
+          <label for="controlTrainSelect">Train<select id="controlTrainSelect" name="trainId" required><option value="">Choose a train</option></select></label>
+          <label for="delayMinutes">Delay<input id="delayMinutes" name="minutes" type="number" min="1" value="10" required></label>
+          <button class="secondary-button" id="applyDelayButton" type="button">Apply delay</button>
+          <label for="prioritySelect">Declared priority<select id="prioritySelect" name="priority"><option value="1">1 · Standard</option><option value="2">2 · Elevated</option><option value="3">3 · High</option><option value="4">4 · Urgent</option><option value="5">5 · Highest</option></select></label>
+          <button class="secondary-button" id="applyPriorityButton" type="button">Update priority</button>
+        </div>
+      </form>
       <div class="platform-grid" id="platformCards"><div class="empty-state">Loading platform plan…</div></div>
-      <div class="table-wrap platform-table-wrap"><table><thead><tr><th>TRAIN / LENGTH</th><th>ARRIVAL</th><th>DEPARTURE</th><th>PLATFORM</th><th>BUFFER ENDS</th><th>RESULT</th></tr></thead><tbody id="platformRows"><tr><td colspan="6" class="loading">Calculating platform assignments…</td></tr></tbody></table></div>
-      <div class="panel-foot"><span id="platformFoot">Three platforms · 10 minute clearance buffer</span><span class="legend"><i></i> Schedule-based allocation</span></div>
+      <div class="queue-heading"><div><span class="eyebrow dark-eyebrow">COMPETING ARRIVALS</span><h3>Waiting platform requests</h3></div><span class="count-badge" id="platformQueueBadge">0 queued</span></div>
+      <div class="platform-queue" id="platformQueue"><div class="empty-state">No pending platform requests.</div></div>
+      <div class="table-wrap platform-table-wrap"><table><thead><tr><th>TRAIN / LENGTH</th><th>ARRIVAL</th><th>DEPARTURE</th><th>PLATFORM</th><th>CLEARANCE</th><th>STATUS / ACTION</th></tr></thead><tbody id="platformRows"><tr><td colspan="6" class="loading">Loading platform timetable…</td></tr></tbody></table></div>
+      <div class="panel-foot"><span id="platformFoot">Three platforms · 10 minute clearance buffer</span><span class="legend"><i></i> Conflict-checked schedule</span></div>
     </section>
 
     <section class="panel reservations-panel" id="bookings" aria-labelledby="reservationsTitle">
